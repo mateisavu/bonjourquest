@@ -22,3 +22,17 @@ button:disabled{cursor:default;opacity:.65}
 .controls{font-size:12px}#answers button{min-height:48px}.touch{flex-wrap:wrap}
 @media(max-width:800px){.game-actions label{margin-left:0}.touch{gap:8px;padding:12px}.touch button{min-height:48px;min-width:48px;padding:10px}#learningDialog{padding:18px}}
 @media(max-width:500px){canvas{height:auto;object-fit:contain}.stage:has(#start:not([hidden])){min-height:345px}.startbox p{font-size:13px}.startbox small{font-size:10px}.game-actions button{padding:10px 12px}.game-actions{gap:8px}.intro h1{font-size:36px}.toolbar b{font-size:9px}}
+
+
+/* Gameplay readability and touch controls */
+.stage{height:clamp(390px,46vw,580px);isolation:isolate}
+.stage canvas{height:100%;width:100%;object-fit:fill;outline-offset:-4px}
+.route-status{padding:12px 22px;color:#e6d7a9;font-size:12px;border-top:1px solid #ffffff16;min-height:43px}
+.touch button{user-select:none;-webkit-user-select:none;touch-action:none}
+.touch button.pressed{background:#edce83;color:#172b22;transform:translateY(2px)}
+.overlay{z-index:2}.scene-label{pointer-events:none}
+.startbox small{line-height:1.8}.game-actions button{min-height:44px}
+@media(pointer:coarse){.touch{display:flex;gap:8px;justify-content:center;padding:12px;flex-wrap:wrap}.touch button{min-height:50px;min-width:50px}}
+@media(max-width:600px){.stage{height:390px}.route-status{font-size:11px;padding:12px}.touch{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.touch button{padding:12px 8px;min-height:48px}.startbox{padding:18px}.startbox small{font-size:11px}.stage:has(#quiz:not([hidden])){height:500px}.quizbox{width:100%;padding:20px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+
