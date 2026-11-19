@@ -35,3 +35,29 @@ Import this repository using the Other framework preset. Leave build and install
 
 
 
+
+## Metadata and crawler checks
+
+Run from the repository root with Node.js (no dependencies):
+
+```text
+node check-metadata.cjs
+```
+
+This checks the canonical URL, Open Graph fields, title/description consistency,
+share-image declaration, and crawler files. It also checks representative broken
+metadata and crawler cases. The sitemap lists only the deployed homepage;
+chapters are game states, not separate URLs.
+
+The share image is pending a real path or public URL from the site owner.
+Until it is supplied, the complete check intentionally fails for missing
+`og:image`. To verify the rest while explicitly deferring that requirement:
+
+```text
+node check-metadata.cjs --allow-missing-image
+```
+
+Once supplied, use an absolute HTTPS `og:image` URL and accurate `og:image:alt`.
+An image hosted on this deployment must also exist in the repository. For a
+remote image, the check validates its URL declaration, not its availability or
+contents; verify those separately. Do not add guessed image URLs.
