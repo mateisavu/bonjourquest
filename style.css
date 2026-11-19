@@ -36,3 +36,10 @@ button:disabled{cursor:default;opacity:.65}
 @media(max-width:600px){.stage{height:390px}.route-status{font-size:11px;padding:12px}.touch{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.touch button{padding:12px 8px;min-height:48px}.startbox{padding:18px}.startbox small{font-size:11px}.stage:has(#quiz:not([hidden])){height:500px}.quizbox{width:100%;padding:20px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
 
+
+/* Text equivalent of canvas state; retain existing game layout. */
+canvas:focus-visible{outline:3px solid var(--gold);outline-offset:-4px}
+.accessible-state{padding:0 22px 12px;color:#d3dfcc;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.accessible-state p{margin:8px 0}.accessible-state summary{cursor:pointer;color:var(--gold)}
+.accessible-state summary:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+@media(max-width:600px){.accessible-state{padding:0 12px 12px}}

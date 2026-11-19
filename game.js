@@ -19,7 +19,23 @@ let checkpointY=520,checkpointGate=-1;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function runState(){progress.expeditions??={};return progress.expeditions[world]??={gates:0,coins:[]}}
-function setNotice(message){$('gameStatus').textContent=message;noticeTimer=5}
+function setNotice(message){$('gameStatus').textContent=message;noticeTimer=5;syncAccessibleState()}
+// Derive text from the same state used by physics and drawing. Position is not live-announced.
+function syncAccessibleState(){
+ if(!player)return;
+ const next=gates.findIndex(g=>!g.open);
+ const phase=!running?'Not started':!$('quiz').hidden?'French checkpoint':$('learningDialog').open?'Notebook open':paused?'Paused':'Playing';
+ const summary=names[world]+'. '+phase+'. '+hearts+' of 3 hearts. '+coins+' coins. '+progress.xp+' XP. '+gates.filter(g=>g.open).length+' of '+gates.length+' gates unlocked. Checkpoint: '+(checkpointGate<0?'start':'Gate '+(checkpointGate+1))+'.'+(next<0?' All gates unlocked.':' Next: Gate '+(next+1)+'.')+($('gentle').checked?' Gentle mode on.':'');
+ if($('gameSummary').textContent!==summary)$('gameSummary').textContent=summary;
+ const center=player.x+player.w/2;
+ const relative=x=>Math.round(Math.abs(x-center))+' world pixels '+(Math.abs(x-center)<1?'away':x<center?'left':'right');
+ const nearest=list=>list.reduce((best,item)=>!best||Math.abs(item.x-center)<Math.abs(best.x-center)?item:best,null);
+ const ladder=nearest(QuestPhysics.ladders.map(l=>({...l,x:l.x+l.w/2})));
+ const barrel=nearest(hazards);
+ const coin=nearest(items.filter(c=>!c.taken));
+ const details='Position: x '+Math.round(player.x)+', feet y '+Math.round(player.y+player.h)+' (world coordinates; y increases downward). '+(player.climbing?'Climbing a ladder.':player.ground?'Standing on a platform.':'Airborne.')+(next<0?'':' Gate '+(next+1)+': '+relative(gates[next].x)+', platform y '+gates[next].y+'.')+(ladder?' Nearest ladder: '+relative(ladder.x)+', from y '+ladder.bottom+' to '+ladder.top+'.':'')+(barrel?' Nearest barrel: '+relative(barrel.x)+', center y '+barrel.y+'.':'')+(coin?' Nearest uncollected coin: '+relative(coin.x)+', center y '+coin.y+'.':' No coins remaining.');
+ if($('routeDetails').textContent!==details)$('routeDetails').textContent=details;
+}
 function resizeGame(){const stage=document.querySelector('.stage');canvas.width=Math.round(clamp(stage.clientWidth/stage.clientHeight*580,360,1200));canvas.height=580;cam=clamp(player?player.x-canvas.width*.34:0,0,3100-canvas.width)}
 function burst(x,y,color,count=12){if(reducedMotion)return;for(let i=0;i<count;i++)particles.push({x,y,vx:(Math.random()-.5)*110,vy:-30-Math.random()*100,life:.55,max:.55,color})}
 function markCheckpoint(i){gates[i].open=true;checkpointGate=i;checkpoint=gates[i].x+35;checkpointY=gates[i].y;runState().gates=i+1;burst(gates[i].x,gates[i].y-40,'#edce83',24);setNotice('Checkpoint saved · Gate '+(i+1)+' unlocked')}
@@ -41,18 +57,26 @@ function loadWorld(n,restart=false){
  setNotice(checkpointGate>=0?'Resumed at Gate '+(checkpointGate+1)+'. Your checkpoint is safe.':'Head right. Hold ↑ beside a ladder to climb.');
  if(running)persist();
 }
-function hud(){$('hud').textContent='♥ '.repeat(hearts)+'♡ '.repeat(3-hearts)+'   ◈ '+coins}
+function hud(){$('hud').textContent='♥ '.repeat(hearts)+'♡ '.repeat(3-hearts)+'   ◈ '+coins;syncAccessibleState()}
 function jump(){if(running&&!paused){QuestPhysics.queueJump(player);tone(280)}}
 function releaseKey(code){keys[code]=false;if(code==='Space')QuestPhysics.releaseJump(player)}
 function isEditing(target){return target&&(/INPUT|TEXTAREA|SELECT/.test(target.tagName)||target.isContentEditable)}
 window.addEventListener('keydown',e=>{
+ if(!$('quiz').hidden&&!$('learningDialog').open&&e.code==='Tab'){
+  const buttons=[...$('answers').children,$('continue')].filter(b=>!b.disabled&&!b.hidden);
+  const first=buttons[0],last=buttons[buttons.length-1];
+  if(first&&((e.shiftKey&&document.activeElement===first)||(!e.shiftKey&&document.activeElement===last)||!buttons.includes(document.activeElement))){e.preventDefault();(e.shiftKey?last:first).focus()}
+  return;
+ }
+
  if(e.code==='Escape'&&running&&$('quiz').hidden&&!$('learningDialog').open){e.preventDefault();setPaused(!paused);return}
- if(paused||$('learningDialog').open||isEditing(e.target))return;
+ if(!running||paused||$('learningDialog').open||isEditing(e.target)||e.target!==canvas)return;
  if(e.target.tagName==='BUTTON'&&e.code==='Space')return;
  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)&&running)e.preventDefault();
  keys[e.code]=true;if(e.code==='Space'&&!e.repeat)jump();if(e.code==='KeyE'&&!e.repeat)tryGate();
 });
 window.addEventListener('keyup',e=>releaseKey(e.code));
+canvas.addEventListener('blur',()=>{clearKeys();QuestPhysics.releaseJump(player)});
 function interruption(){clearKeys();if(running&&!paused&&$('quiz').hidden&&!$('learningDialog').open)setPaused(true)}
 window.addEventListener('blur',interruption);document.addEventListener('visibilitychange',()=>{if(document.hidden)interruption()});
 const pointerKeys=new Map();
@@ -83,7 +107,7 @@ function showGateQuestion(i){
  choices.forEach(choice=>{const b=document.createElement('button');b.textContent=choice.label;b.onclick=()=>{
  if(choice.correct){b.classList.add('correct');$('feedback').textContent='Très bien! '+card.fr+' — '+card.en+'. '+card.tip;$('note').textContent=q[4];[...$('answers').children].forEach(v=>v.disabled=true);$('continue').hidden=false;markCheckpoint(i);
  if(!progress.words.includes(q[4])){progress.words.push(q[4]);progress.xp+=50}persist();tone(780);$('continue').focus()
- }else{b.classList.add('wrong');b.disabled=true;$('feedback').textContent='Let’s revisit it: '+card.fr+' means “'+card.en+'”. '+card.tip+' Try again.';tone(180)}
+ }else{b.classList.add('wrong');b.disabled=true;$('feedback').textContent='Let’s revisit it: '+card.fr+' means “'+card.en+'”. '+card.tip+' Try again.';tone(180);[...$('answers').children].find(answer=>!answer.disabled)?.focus()}
  };$('answers').append(b)});$('answers').firstChild.focus()
 }
 $('continue').onclick=()=>{if(questionGate<2){paused=false;$('quiz').hidden=true;player.x=checkpoint;player=QuestPhysics.createPlayer(checkpoint,checkpointY);player.inv=1;clearKeys();canvas.focus()}else{progress.unlocked=Math.max(progress.unlocked,Math.min(2,world+1));persist();$('question').textContent=world===2?'The Lexicon is restored!':'Chapter complete. Très bien!';$('hint').textContent=world===2?'You practised nine French essentials. Open Study & recall to try remembering them without answer choices.':'A new world is unlocked. Your French is getting stronger.';$('answers').replaceChildren();$('feedback').textContent=`${coins} coins collected · ${progress.xp} total XP`;$('continue').textContent=world===2?'Play the expedition again →':'Explore the next world →';$('continue').onclick=()=>{loadWorld(world===2?0:world+1,true);paused=false;$('quiz').hidden=true;restoreContinue()}}};
@@ -165,7 +189,7 @@ canvas.tabIndex=0;
 $('heroPlay').onclick=()=>{$('play').click();document.querySelector('.adventure').scrollIntoView({block:'start',behavior:'auto'})};
 if(progress.xp>0)$('play').textContent='Continue adventure →';
 
-function frame(t){const dt=last?Math.min(.1,(t-last)/1000):0;last=t;if(running&&!paused){accumulator+=dt;while(accumulator>=1/120){step(1/120);accumulator-=1/120;if(paused){accumulator=0;break}}}else accumulator=0;draw();requestAnimationFrame(frame)}loadWorld(clamp(Math.floor(Number(progress.current)||0),0,progress.unlocked));resizeGame();window.addEventListener('resize',resizeGame);requestAnimationFrame(frame);
+function frame(t){const dt=last?Math.min(.1,(t-last)/1000):0;last=t;if(running&&!paused){accumulator+=dt;while(accumulator>=1/120){step(1/120);accumulator-=1/120;if(paused){accumulator=0;break}}}else accumulator=0;syncAccessibleState();draw();requestAnimationFrame(frame)}loadWorld(clamp(Math.floor(Number(progress.current)||0),0,progress.unlocked));resizeGame();window.addEventListener('resize',resizeGame);requestAnimationFrame(frame);
 
 
 

@@ -61,3 +61,19 @@ Once supplied, use an absolute HTTPS `og:image` URL and accurate `og:image:alt`.
 An image hosted on this deployment must also exist in the repository. For a
 remote image, the check validates its URL declaration, not its availability or
 contents; verify those separately. Do not add guessed image URLs.
+
+## Accessibility checks
+
+Run `node check-physics.cjs` and `node check-adventure.cjs` from this directory.
+The adventure checks include state-derived text, focus-scoped keyboard input,
+quiz retry focus and Tab cycling, pause/resume focus, and reload synchronization.
+They use a simulated DOM; actual browser checks are still needed.
+
+At a 320px viewport, use Tab and Enter to start, arrows/Space on the focused
+canvas to play, Escape to pause, and Tab to reach Text view of the game.
+Verify arrows do not move the explorer when a page control has focus. At a gate,
+verify Tab/Shift+Tab remain within the quiz, wrong answers focus an enabled
+choice, and Continue returns focus to the canvas. Hearts, coins, XP, gates and
+checkpoints are live text; changing spatial details are available in the text
+view without per-frame live announcements. This is not a claim of full
+screen-reader or nonvisual playability.

@@ -2,13 +2,13 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 function boot(saved){
  const elements={},listeners={},storage={value:saved||null};
  function el(){return {hidden:false,open:false,checked:false,disabled:false,value:'',tagName:'DIV',style:{},children:[],className:'',textContent:'',clientWidth:1000,clientHeight:480,
-  classList:{add(){},remove(){},toggle(){}},setAttribute(){},getAttribute(){},addEventListener(type,fn){this[type]=fn},focus(){},close(){this.open=false},showModal(){this.open=true},click(){this.onclick?.()},append(...children){this.children.push(...children);this.firstChild=this.children[0]},replaceChildren(){this.children=[];this.firstChild=null},querySelector(){return el()},scrollIntoView(){}}}
+  classList:{add(){},remove(){},toggle(){}},setAttribute(){},getAttribute(){},addEventListener(type,fn){this[type]=fn},focus(){document.activeElement=this},close(){this.open=false},showModal(){this.open=true},click(){if(!this.disabled)this.onclick?.()},append(...children){this.children.push(...children);this.firstChild=this.children[0]},replaceChildren(){this.children=[];this.firstChild=null},querySelector(){return el()},scrollIntoView(){}}}
  const drawing=new Proxy({createLinearGradient(){return {addColorStop(){}}},createRadialGradient(){return {addColorStop(){}}}},{get(t,k){return t[k]??(()=>{})},set(t,k,v){t[k]=v;return true}});
  const canvas=el();canvas.width=1200;canvas.height=580;canvas.getContext=()=>drawing;elements.game=canvas;
  const document={hidden:false,getElementById:id=>elements[id]??=(el()),querySelector:selector=>elements[selector]??=el(),querySelectorAll:()=>[],createElement:el,addEventListener(type,fn){listeners[type]=fn}};
- const context={console,document,window:{matchMedia(){return {matches:false}},addEventListener(type,fn){listeners[type]=fn}},localStorage:{getItem(){return storage.value},setItem(k,v){storage.value=v}},requestAnimationFrame(){},confirm:()=>true};
+ const context={console,document,window:{matchMedia(){return {matches:false}},addEventListener(type,fn){listeners[type]=fn}},localStorage:{getItem(){return storage.value},setItem(k,v){storage.value=v}},requestAnimationFrame(){},confirm:()=>true,assert};
  vm.createContext(context);vm.runInContext(fs.readFileSync('physics.js','utf8'),context);vm.runInContext(fs.readFileSync('game.js','utf8'),context);
- return {context,storage,run:code=>vm.runInContext(code,context)};
+ return {context,storage,listeners,elements,run:code=>vm.runInContext(code,context)};
 }
 const game=boot();
 game.run(`running=true;$('gentle').checked=true;
@@ -40,3 +40,52 @@ restored.run(`if(world!==1||progress.xp!==150||progress.words.length!==1)throw E
 console.log('PASS: physically traverse all 3 worlds, learn-first quizzes, nine gate unlocks, XP, chapter transitions, reload checkpoints, safe respawn, pause, old save migration');
 
 
+
+// Accessibility regression checks use the real game handlers and shared game state.
+const accessible=boot();
+accessible.run(`$('quiz').hidden=true;$('learningDialog').open=false;running=true;paused=false;syncAccessibleState();
+ assert.match($('gameSummary').textContent,/3 of 3 hearts/);
+ assert.match($('gameSummary').textContent,/Next: Gate 1/);
+ assert.match($('routeDetails').textContent,/Position: x 60, feet y 520/);
+ const savedBefore=JSON.stringify(progress);syncAccessibleState();assert.equal(JSON.stringify(progress),savedBefore,'text rendering must not mutate progress');
+ hearts=2;coins=4;progress.xp=75;markCheckpoint(0);syncAccessibleState();
+ assert.match($('gameSummary').textContent,/2 of 3 hearts. 4 coins. 75 XP/);
+ assert.match($('gameSummary').textContent,/Checkpoint: Gate 1/);
+ assert.match($('gameSummary').textContent,/Next: Gate 2/);
+ player.x=716;player.climbing=true;player.ground=false;syncAccessibleState();assert.match($('routeDetails').textContent,/Climbing a ladder/);
+ player=QuestPhysics.createPlayer(60);hearts=3;coins=0;loadWorld(0,true);$('quiz').hidden=true;
+`);
+function key(code,target=accessible.elements.game,shiftKey=false){const e={code,target,shiftKey,repeat:false,prevented:false,preventDefault(){this.prevented=true}};accessible.listeners.keydown(e);return e}
+assert.equal(key('ArrowRight',accessible.elements.help).prevented,false);
+accessible.run(`assert.ok(!keys.ArrowRight,'page buttons must not move the explorer')`);
+assert.equal(key('ArrowRight').prevented,true);
+accessible.run(`assert.equal(keys.ArrowRight,true)`);
+accessible.elements.game.blur();
+accessible.run(`assert.equal(keys.ArrowRight,false,'leaving canvas must clear held input')`);
+key('Space');accessible.run(`assert.ok(player.jumpBuffer>0,'canvas Space queues a jump')`);
+accessible.elements.game.blur();accessible.run(`assert.equal(player.jumpBuffer,0)`);
+accessible.run(`openQuiz(0);$('continue').click();
+ const correct=lessons[0][0][2][lessons[0][0][3]];
+ const wrong=$('answers').children.find(b=>b.textContent!==correct);
+ const beforeHearts=hearts,beforeXP=progress.xp;wrong.focus();wrong.click();
+ assert.ok(wrong.disabled);assert.notEqual(document.activeElement,wrong);
+ assert.ok(!document.activeElement.disabled);assert.equal(hearts,beforeHearts);assert.equal(progress.xp,beforeXP);
+ assert.ok(!gates[0].open,'wrong answer must not unlock a gate');
+ $('answers').children.filter(b=>!b.disabled).at(-1).focus();
+`);
+assert.equal(key('Tab',accessible.context.document.activeElement).prevented,true);
+accessible.run(`assert.equal(document.activeElement,$('answers').children.find(b=>!b.disabled))`);
+assert.equal(key('Tab',accessible.context.document.activeElement,true).prevented,true);
+accessible.run(`assert.equal(document.activeElement,$('answers').children.filter(b=>!b.disabled).at(-1));
+ $('answers').children.find(b=>b.textContent===lessons[0][0][2][lessons[0][0][3]]).click();
+ assert.equal(document.activeElement,$('continue'));$('continue').click();assert.equal(document.activeElement,canvas);
+ syncAccessibleState();assert.match($('gameSummary').textContent,/Checkpoint: Gate 1/);
+ assert.match($('routeDetails').textContent,/Position: x 935, feet y 345/);
+ setPaused(true);syncAccessibleState();assert.match($('gameSummary').textContent,/Paused/);
+ assert.equal(document.activeElement,$('resume'));setPaused(false);assert.equal(document.activeElement,canvas);
+ persist();
+`);
+accessible.run(`const countBefore=coins;items.forEach(c=>c.taken=true);syncAccessibleState();assert.match($('routeDetails').textContent,/No coins remaining/);assert.equal(coins,countBefore);`);
+const accessibleReload=boot(accessible.storage.value);
+accessibleReload.run(`syncAccessibleState();assert.match($('gameSummary').textContent,/Checkpoint: Gate 1/);assert.match($('routeDetails').textContent,/Position: x 935, feet y 345/)`);
+console.log('PASS: state-derived text, no progress mutation, canvas-only keyboard input, blur clears controls, wrong-answer focus, quiz Tab/Shift+Tab containment, resume focus, reload synchronization');
