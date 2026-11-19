@@ -54,3 +54,11 @@ canvas:focus-visible{outline:3px solid var(--gold);outline-offset:-4px}
 .instruction-notes{border-top:1px solid #ffffff20;padding-top:14px;margin-top:14px}
 .instruction-controls #restart{margin:8px 0 0;padding:10px 12px;border:1px solid #ffffff20;font-size:12px;min-height:44px}
 @media(max-width:600px){.instruction-grid{grid-template-columns:minmax(0,1fr);gap:18px}.instruction-controls{padding:16px 12px}}
+
+/* Distinct new-adventure and saved-adventure entry points. */
+#heroPlay{min-height:48px}
+.entry-hint{font-size:12px;line-height:1.6;max-width:42ch}
+.intro .entry-hint{margin:10px 0 0}
+.startbox .entry-hint{margin:12px auto;color:#d3dfcc;font-size:12px}
+#play.secondary-play{background:#172b22;color:var(--gold);border:1px solid var(--gold);min-height:48px;padding:14px 22px;font-weight:600}
+#play.secondary-play:hover{background:#253a2b}

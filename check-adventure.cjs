@@ -2,7 +2,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 function boot(saved){
  const elements={},listeners={},storage={value:saved||null};
  function el(){return {hidden:false,open:false,checked:false,disabled:false,value:'',tagName:'DIV',style:{},children:[],className:'',textContent:'',clientWidth:1000,clientHeight:480,
-  classList:{add(){},remove(){},toggle(){}},setAttribute(){},getAttribute(){},addEventListener(type,fn){this[type]=fn},focus(){document.activeElement=this},close(){this.open=false},showModal(){this.open=true},click(){if(!this.disabled)this.onclick?.()},append(...children){this.children.push(...children);this.firstChild=this.children[0]},replaceChildren(){this.children=[];this.firstChild=null},querySelector(){return el()},scrollIntoView(){}}}
+  classList:{add(){},remove(){},toggle(){}},setAttribute(){},getAttribute(){},addEventListener(type,fn){this[type]=fn},focus(){document.activeElement=this},close(){this.open=false},showModal(){this.open=true},click(){if(!this.disabled)this.onclick?.()},append(...children){this.children.push(...children);this.firstChild=this.children[0]},replaceChildren(){this.children=[];this.firstChild=null},querySelector(){return el()},scrollIntoView(){this.scrollCalls=(this.scrollCalls||0)+1}}}
  const drawing=new Proxy({createLinearGradient(){return {addColorStop(){}}},createRadialGradient(){return {addColorStop(){}}}},{get(t,k){return t[k]??(()=>{})},set(t,k,v){t[k]=v;return true}});
  const canvas=el();canvas.width=1200;canvas.height=580;canvas.getContext=()=>drawing;elements.game=canvas;
  const document={hidden:false,getElementById:id=>elements[id]??=(el()),querySelector:selector=>elements[selector]??=el(),querySelectorAll:()=>[],createElement:el,addEventListener(type,fn){listeners[type]=fn}};
@@ -89,3 +89,44 @@ accessible.run(`const countBefore=coins;items.forEach(c=>c.taken=true);syncAcces
 const accessibleReload=boot(accessible.storage.value);
 accessibleReload.run(`syncAccessibleState();assert.match($('gameSummary').textContent,/Checkpoint: Gate 1/);assert.match($('routeDetails').textContent,/Position: x 935, feet y 345/)`);
 console.log('PASS: state-derived text, no progress mutation, canvas-only keyboard input, blur clears controls, wrong-answer focus, quiz Tab/Shift+Tab containment, resume focus, reload synchronization');
+
+// Distinct entry points: new adventure resets only the run; Continue never creates one.
+let entry=boot();
+entry.run(`assert.equal($('play').hidden,true);assert.equal($('play').disabled,true);
+ $('play').onclick();assert.equal(running,false,'Continue must not create an adventure');
+ $('heroPlay').click();assert.equal(running,true);assert.equal(world,0);assert.equal(player.x,60);
+ assert.equal(progress.adventureStarted,true);assert.equal($('start').hidden,true);assert.equal($('pause').disabled,false);
+ assert.equal(document.activeElement,canvas);assert.equal(document.querySelector('.adventure').scrollCalls,1);
+ assert.equal(progress.xp,0);assert.equal($('play').disabled,false);
+`);
+let zeroXPReload=boot(entry.storage.value);
+zeroXPReload.run(`assert.equal(progress.xp,0);assert.equal($('play').hidden,false,'A started zero-XP adventure can be continued');$('play').click();assert.equal(running,true);assert.equal(document.activeElement,canvas);assert.equal(document.querySelector('.adventure').scrollCalls,undefined)`);
+const entrySave=JSON.stringify({xp:150,words:['Bonjour = hello'],unlocked:2,current:1,gentle:true,expeditions:{0:{gates:3,coins:[295]},1:{gates:1,coins:[685]}}});
+entry=boot(entrySave);
+entry.run(`assert.equal($('play').hidden,false);const before=JSON.stringify(progress);$('play').click();
+ assert.equal(world,1);assert.equal(checkpointGate,0);assert.equal(player.x,935);assert.equal(coins,1);
+ assert.equal(progress.xp,150);assert.equal(progress.words.length,1);assert.equal(progress.unlocked,2);
+ assert.equal(JSON.stringify(progress),before,'Continue must preserve the saved adventure');
+`);
+entry.context.confirm=()=>false;
+entry.run(`const beforeCancel=JSON.stringify(progress),beforeX=player.x;$('heroPlay').click();assert.equal(JSON.stringify(progress),beforeCancel);assert.equal(player.x,beforeX);assert.equal(world,1)`);
+entry.context.confirm=()=>true;
+entry.run(`$('heroPlay').click();assert.equal(world,0);assert.equal(player.x,60);assert.equal(coins,0);assert.ok(gates.every(g=>!g.open));
+ assert.deepEqual(Object.keys(progress.expeditions),['0']);assert.equal(checkpointGate,-1);
+ assert.equal(progress.xp,150);assert.equal(progress.words[0],'Bonjour = hello');assert.equal(progress.unlocked,2);assert.equal(progress.gentle,true);
+ assert.equal(document.activeElement,canvas);assert.equal($('start').hidden,true);assert.equal($('quiz').hidden,true);assert.equal(paused,false);
+`);
+const resetRun=boot(entry.storage.value);
+resetRun.run(`$('play').click();assert.equal(world,0);assert.equal(coins,0);assert.equal(progress.xp,150);assert.equal(checkpointGate,-1)`);
+const completed=boot(JSON.stringify({xp:450,words:[],unlocked:2,current:2,adventureStarted:true,expeditions:{2:{gates:3,coins:[]}}}));
+completed.run(`$('play').click();assert.equal(paused,true);assert.equal($('quiz').hidden,false);assert.equal($('question').textContent,'The Lexicon is restored!');
+ $('heroPlay').click();assert.equal(world,0);assert.equal(paused,false);assert.equal($('quiz').hidden,true);assert.equal(progress.xp,450);
+ $('reset').click();assert.equal($('play').hidden,true);assert.equal($('play').disabled,true);
+`);
+const markup=fs.readFileSync('index.html','utf8');
+for(const [id,description] of [['heroPlay','newAdventureHint'],['play','continueHint']]){
+ const button=markup.match(new RegExp('<button[^>]*id="'+id+'"[^>]*>'))?.[0];assert.ok(button);
+ assert.ok(button.includes('type="button"'));assert.ok(button.includes('aria-controls="game"'));assert.ok(button.includes('aria-describedby="'+description+'"'));
+ assert.ok(markup.includes('id="'+description+'"'));
+}
+console.log('PASS: fresh Start, unavailable Continue, zero-XP resume, saved checkpoint/coin preservation, reset scope, cancellation, completion resume, focus, scrolling and entry descriptions');

@@ -17,6 +17,10 @@ function validate(sample){
  requireCheck(JSON.stringify(sample.instructions.labels)===JSON.stringify(['Keyboard','Touch']),'Keyboard and touch groups need associated headings');
  requireCheck(sample.instructions.visible,'Instruction guidance is hidden');
  requireCheck(sample.instructions.readable,'Instructions overflow or are clipped');
+ requireCheck(sample.entries.heroVisible&&sample.entries.heroFits,'Start must remain visible and unclipped');
+ requireCheck(sample.entries.continueAvailable===sample.entries.continueVisible,'Continue availability and visibility disagree');
+ requireCheck(sample.entries.continueFits,'Continue is clipped');
+ requireCheck(sample.entries.descriptions,'Entry buttons need associated explanatory text');
  const visible=sample.width<=800||sample.coarse;
  requireCheck((sample.display!=='none')===visible,'Unexpected visibility at '+sample.width+'px');
  if(!visible)return;
@@ -40,7 +44,10 @@ function measure(frame){
  const sections=['keyboardInstructions','touchInstructions'].map(id=>doc.getElementById(id));
  const instructions={heading:doc.getElementById(guide.getAttribute('aria-labelledby'))?.textContent,labels:sections.map(section=>doc.getElementById(section.getAttribute('aria-labelledby'))?.textContent),visible:[guide,...sections].every(element=>element.getBoundingClientRect().height>0&&win.getComputedStyle(element).visibility==='visible'&&!element.closest('[hidden],[aria-hidden="true"]')),readable:[guide,...guide.querySelectorAll('li')].every(element=>{const r=element.getBoundingClientRect();return r.left>=0&&r.right<=doc.documentElement.clientWidth+1&&element.scrollWidth<=element.clientWidth+1})};
 
- return {instructions,width:win.innerWidth,coarse:win.matchMedia('(pointer:coarse)').matches,display:win.getComputedStyle(group).display,keys:[...group.querySelectorAll('button')].map(b=>b.dataset.key),bounds:rect(group),adventure:rect(doc.querySelector('.adventure')),scrollWidth:group.scrollWidth,clientWidth:group.clientWidth,buttons:[...group.querySelectorAll('button')].map(b=>({...rect(b),scrollWidth:b.scrollWidth,clientWidth:b.clientWidth,scrollHeight:b.scrollHeight,clientHeight:b.clientHeight,touchAction:win.getComputedStyle(b).touchAction}))};
+ const hero=doc.getElementById('heroPlay'),play=doc.getElementById('play'),stage=doc.querySelector('.stage').getBoundingClientRect();
+ const heroRect=hero.getBoundingClientRect(),playRect=play.getBoundingClientRect();
+ const entries={heroVisible:heroRect.height>0,heroFits:heroRect.left>=0&&heroRect.right<=doc.documentElement.clientWidth+1,continueAvailable:!play.disabled,continueVisible:playRect.height>0,continueFits:play.hidden||(playRect.left>=stage.left&&playRect.right<=stage.right&&playRect.top>=stage.top&&playRect.bottom<=stage.bottom),descriptions:[hero,play].every(b=>b.type==='button'&&b.getAttribute('aria-controls')==='game'&&doc.getElementById(b.getAttribute('aria-describedby'))?.textContent.trim())};
+ return {entries,instructions,width:win.innerWidth,coarse:win.matchMedia('(pointer:coarse)').matches,display:win.getComputedStyle(group).display,keys:[...group.querySelectorAll('button')].map(b=>b.dataset.key),bounds:rect(group),adventure:rect(doc.querySelector('.adventure')),scrollWidth:group.scrollWidth,clientWidth:group.clientWidth,buttons:[...group.querySelectorAll('button')].map(b=>({...rect(b),scrollWidth:b.scrollWidth,clientWidth:b.clientWidth,scrollHeight:b.scrollHeight,clientHeight:b.clientHeight,touchAction:win.getComputedStyle(b).touchAction}))};
 }
 async function fixture(width){
  const frame=document.createElement('iframe');frame.title='Test viewport '+width;frame.style.width=width+'px';
@@ -61,7 +68,7 @@ async function fixture(width){
   }catch(error){failed++;lines.push('FAIL '+width+'px: '+error.message)}
   output.textContent=lines.join('\n');
  }
- output.textContent+='\n'+(failed?'FAIL: '+failed+' viewport(s) failed.':'PASS: all 9 viewport checks, instruction visibility/labels and negative cases.')+'\nPointer media queries reflect the actual test browser; run on a touch device as well to verify its coarse-pointer branch.';
+ output.textContent+='\n'+(failed?'FAIL: '+failed+' viewport(s) failed.':'PASS: all 9 viewport checks, instruction/entry visibility and negative cases.')+'\nPointer media queries reflect the actual test browser; run on a touch device as well to verify its coarse-pointer branch.';
  document.title=(failed?'FAIL':'PASS')+' — touch-layout checks';
 })();
 </script>

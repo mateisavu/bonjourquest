@@ -105,3 +105,14 @@ keyboard/touch instruction groups, every supported key, touch gestures, quiz
 and checkpoint guidance, and preservation of all six touch controls.
 The browser-based `/check-responsive.html` check additionally verifies that
 the instruction groups are visible, labelled, and unclipped at all nine widths.
+
+## Start and Continue
+
+Start new adventure resets all adventure checkpoints and coins to chapter one,
+while retaining French XP, learned phrases, unlocked chapters, and Gentle mode.
+If an adventure already exists, a confirmation lets you cancel that reset.
+Continue appears only for a started adventure, including zero-XP adventures.
+It resumes the saved checkpoint without clearing progress.
+Run `node check-adventure.cjs` for both entry-point regression tests. The
+browser-based `check-responsive.html` checks their visibility, descriptions,
+and mobile fit alongside the existing responsive checks.

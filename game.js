@@ -1,5 +1,12 @@
 const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
 let saved;try{saved=JSON.parse(localStorage.getItem('bonjourQuest'))}catch{}let progress=saved&&Array.isArray(saved.words)&&Number.isFinite(saved.xp)?saved:{xp:0,words:[],unlocked:0};progress.unlocked=Math.max(0,Math.min(2,Number(progress.unlocked)||0));
+// Migrate genuine legacy saves, including adventures started before earning XP.
+if(progress.adventureStarted===undefined)progress.adventureStarted=progress.xp>0||!!(Number.isInteger(progress.current)&&progress.expeditions&&Object.keys(progress.expeditions).length);
+function updateEntryPoints(){
+ const available=progress.adventureStarted===true;
+ $('play').hidden=!available;$('play').disabled=!available;
+ $('continueHint').textContent=available?'Continue your started adventure from its saved checkpoint.':'No adventure started yet. Use Start new adventure above to begin.';
+}
 const lessons=[[
 ['How do you say “hello” in French?','A friendly word for meeting someone.',['Bonjour','Merci','Au revoir','Pardon'],0,'Bonjour = hello'],
 ['Someone helps you. What do you say?','Show your appreciation.',['Bonsoir','Merci','Salut','Oui'],1,'Merci = thank you'],
@@ -24,7 +31,7 @@ function setNotice(message){$('gameStatus').textContent=message;noticeTimer=5;sy
 function syncAccessibleState(){
  if(!player)return;
  const next=gates.findIndex(g=>!g.open);
- const phase=!running?'Not started':!$('quiz').hidden?'French checkpoint':$('learningDialog').open?'Notebook open':paused?'Paused':'Playing';
+ const phase=!running?(progress.adventureStarted?'Ready to continue':'Not started'):!$('quiz').hidden?'French checkpoint':$('learningDialog').open?'Notebook open':paused?'Paused':'Playing';
  const summary=names[world]+'. '+phase+'. '+hearts+' of 3 hearts. '+coins+' coins. '+progress.xp+' XP. '+gates.filter(g=>g.open).length+' of '+gates.length+' gates unlocked. Checkpoint: '+(checkpointGate<0?'start':'Gate '+(checkpointGate+1))+'.'+(next<0?' All gates unlocked.':' Next: Gate '+(next+1)+'.')+($('gentle').checked?' Gentle mode on.':'');
  if($('gameSummary').textContent!==summary)$('gameSummary').textContent=summary;
  const center=player.x+player.w/2;
@@ -41,7 +48,7 @@ function burst(x,y,color,count=12){if(reducedMotion)return;for(let i=0;i<count;i
 function markCheckpoint(i){gates[i].open=true;checkpointGate=i;checkpoint=gates[i].x+35;checkpointY=gates[i].y;runState().gates=i+1;burst(gates[i].x,gates[i].y-40,'#edce83',24);setNotice('Checkpoint saved · Gate '+(i+1)+' unlocked')}
 function respawn(){player=QuestPhysics.createPlayer(checkpoint,checkpointY);player.inv=2;hearts=3;clearKeys();cam=clamp(player.x-canvas.width*.34,0,3100-canvas.width);setNotice(checkpointGate>=0?'Back at your saved gate. Your coins and French progress are safe.':'A fresh start. Try jumping over barrels, or turn on Gentle mode.');hud()}
 function persist(){try{localStorage.setItem('bonjourQuest',JSON.stringify(progress))}catch{}updateUI()}
-function updateUI(){$('stats').textContent=`${progress.xp} XP · ${progress.words.length} phrases practised`;$('rank').textContent=progress.unlocked>=2?'Lexicon adventurer':progress.xp>=100?'Word trailblazer':'Novice explorer';$('xpbar').style.width=Math.min(100,progress.xp/4.5)+'%';document.querySelectorAll('.world').forEach((b,i)=>{b.classList.toggle('selected',i===world);b.querySelector('i').textContent=i<=progress.unlocked?'↗':'⌑';b.setAttribute('aria-label',names[i]+(i>progress.unlocked?' locked':''))})}
+function updateUI(){updateEntryPoints();$('stats').textContent=`${progress.xp} XP · ${progress.words.length} phrases practised`;$('rank').textContent=progress.unlocked>=2?'Lexicon adventurer':progress.xp>=100?'Word trailblazer':'Novice explorer';$('xpbar').style.width=Math.min(100,progress.xp/4.5)+'%';document.querySelectorAll('.world').forEach((b,i)=>{b.classList.toggle('selected',i===world);b.querySelector('i').textContent=i<=progress.unlocked?'↗':'⌑';b.setAttribute('aria-label',names[i]+(i>progress.unlocked?' locked':''))})}
 function tone(freq=520){if(!sound)return;try{audio??=new AudioContext();const o=audio.createOscillator(),g=audio.createGain();o.connect(g);g.connect(audio.destination);o.frequency.value=freq;g.gain.setValueAtTime(.07,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.18);o.start();o.stop(audio.currentTime+.18)}catch{}}
 function loadWorld(n,restart=false){
  world=n;progress.current=n;progress.expeditions??={};if(restart)progress.expeditions[n]={gates:0,coins:[]};
@@ -112,7 +119,8 @@ function showGateQuestion(i){
 }
 $('continue').onclick=()=>{if(questionGate<2){paused=false;$('quiz').hidden=true;player.x=checkpoint;player=QuestPhysics.createPlayer(checkpoint,checkpointY);player.inv=1;clearKeys();canvas.focus()}else{progress.unlocked=Math.max(progress.unlocked,Math.min(2,world+1));persist();$('question').textContent=world===2?'The Lexicon is restored!':'Chapter complete. Très bien!';$('hint').textContent=world===2?'You practised nine French essentials. Open Study & recall to try remembering them without answer choices.':'A new world is unlocked. Your French is getting stronger.';$('answers').replaceChildren();$('feedback').textContent=`${coins} coins collected · ${progress.xp} total XP`;$('continue').textContent=world===2?'Play the expedition again →':'Explore the next world →';$('continue').onclick=()=>{loadWorld(world===2?0:world+1,true);paused=false;$('quiz').hidden=true;restoreContinue()}}};
 const originalContinue=$('continue').onclick;function restoreContinue(){$('continue').textContent='Continue adventure →';$('continue').onclick=originalContinue}
-$('play').onclick=()=>{running=true;paused=false;$('pauseScreen').hidden=true;$('start').hidden=true;$('pause').disabled=false;canvas.focus();persist();tone(600);if(runState().gates===3)openChapterComplete()};$('restart').onclick=()=>{if(!confirm('Restart this chapter? Its gates and coins will reset. Your French XP stays safe.'))return;loadWorld(world,true);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue();if(running)canvas.focus()};document.querySelectorAll('.world').forEach((b,i)=>b.onclick=()=>{if(i<=progress.unlocked){loadWorld(i);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue();if(running){canvas.focus();if(runState().gates===3)openChapterComplete()}}else{$('note').textContent='Complete the previous chapter’s three French gates to unlock this world.'}});$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'♪ Sound on':'♪ Sound off';tone()};$('reset').onclick=()=>{if(confirm('Reset your saved XP and unlocked worlds?')){progress={xp:0,words:[],unlocked:0};persist();loadWorld(0);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue()}};
+function enterAdventure(){running=true;paused=false;$('pauseScreen').hidden=true;$('start').hidden=true;$('quiz').hidden=true;$('pause').disabled=false;$('pause').textContent='Pause';clearKeys();restoreContinue();canvas.focus();persist();tone(600);if(runState().gates===3)openChapterComplete()}
+$('play').onclick=()=>{if(progress.adventureStarted!==true)return;enterAdventure()};$('restart').onclick=()=>{if(!confirm('Restart this chapter? Its gates and coins will reset. Your French XP stays safe.'))return;loadWorld(world,true);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue();if(running)canvas.focus()};document.querySelectorAll('.world').forEach((b,i)=>b.onclick=()=>{if(i<=progress.unlocked){loadWorld(i);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue();if(running){canvas.focus();if(runState().gates===3)openChapterComplete()}}else{$('note').textContent='Complete the previous chapter’s three French gates to unlock this world.'}});$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'♪ Sound on':'♪ Sound off';tone()};$('reset').onclick=()=>{if(confirm('Reset your saved XP and unlocked worlds?')){progress={xp:0,words:[],unlocked:0};persist();loadWorld(0);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue()}};
 function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h)}
 function mountain(x,y,w,h,c){ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w*.25,y-h*.75);ctx.lineTo(x+w*.48,y-h);ctx.lineTo(x+w*.62,y-h*.63);ctx.lineTo(x+w,y);ctx.fill()}
 function palm(x,y,s,c){rect(x,y-130*s,10*s,130*s,c);ctx.strokeStyle=c;ctx.lineWidth=12*s;for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(x+5*s,y-130*s);ctx.quadraticCurveTo(x+i*35*s,y-175*s,x+i*48*s,y-125*s);ctx.stroke()}}
@@ -186,8 +194,11 @@ $('help').onclick=()=>{showNotebook('How to explore');const p=document.createEle
 $('pause').onclick=()=>setPaused(!paused);
 $('gentle').onchange=()=>{progress.gentle=$('gentle').checked;persist()};$('gentle').checked=!!progress.gentle;
 canvas.tabIndex=0;
-$('heroPlay').onclick=()=>{$('play').click();document.querySelector('.adventure').scrollIntoView({block:'start',behavior:'auto'})};
-if(progress.xp>0)$('play').textContent='Continue adventure →';
+$('heroPlay').onclick=()=>{
+ if(progress.adventureStarted===true&&!confirm('Start a new adventure? All adventure checkpoints and coins will reset. Your French XP, learned phrases, and unlocked chapters stay safe.'))return;
+ progress.expeditions={};progress.current=0;progress.adventureStarted=true;
+ loadWorld(0,true);enterAdventure();document.querySelector('.adventure').scrollIntoView({block:'start',behavior:'auto'});
+};
 
 function frame(t){const dt=last?Math.min(.1,(t-last)/1000):0;last=t;if(running&&!paused){accumulator+=dt;while(accumulator>=1/120){step(1/120);accumulator-=1/120;if(paused){accumulator=0;break}}}else accumulator=0;syncAccessibleState();draw();requestAnimationFrame(frame)}loadWorld(clamp(Math.floor(Number(progress.current)||0),0,progress.unlocked));resizeGame();window.addEventListener('resize',resizeGame);requestAnimationFrame(frame);
 
