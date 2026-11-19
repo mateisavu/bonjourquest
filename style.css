@@ -43,3 +43,14 @@ canvas:focus-visible{outline:3px solid var(--gold);outline-offset:-4px}
 .accessible-state p{margin:8px 0}.accessible-state summary{cursor:pointer;color:var(--gold)}
 .accessible-state summary:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 @media(max-width:600px){.accessible-state{padding:0 12px 12px}}
+
+/* Group instructions without changing the game or touch-control layout. */
+.instruction-controls{display:block;color:#c9d7c8;line-height:1.7}
+.instruction-controls h2{font:600 18px 'DM Sans',sans-serif;margin:0 0 14px;color:#edf1e8}
+.instruction-controls h3{font-size:13px;color:var(--gold);margin:0 0 8px}
+.instruction-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.instruction-controls ul{padding-left:18px;margin:0}.instruction-controls li{margin:0 0 9px}
+.instruction-controls strong{color:#edf1e8}.instruction-controls kbd{font-size:11px;white-space:nowrap}
+.instruction-notes{border-top:1px solid #ffffff20;padding-top:14px;margin-top:14px}
+.instruction-controls #restart{margin:8px 0 0;padding:10px 12px;border:1px solid #ffffff20;font-size:12px;min-height:44px}
+@media(max-width:600px){.instruction-grid{grid-template-columns:minmax(0,1fr);gap:18px}.instruction-controls{padding:16px 12px}}

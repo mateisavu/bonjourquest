@@ -90,3 +90,18 @@ Deliberately broken geometry also verifies that the checker detects regressions.
 The pointer media query reflects the browser running the checks; repeat on an
 actual touch device to verify the coarse-pointer branch and physical multitouch.
 The check reads layout without starting gameplay or resetting saved progress.
+
+## Instruction checks
+
+Run `node check-instructions.cjs` for supported-control coverage and accessible
+heading associations. Open `/check-responsive.html` on a local HTTP server for
+rendered instruction visibility, labels and overflow checks at all nine widths.
+These checks use built-in Node/browser APIs; no dependencies are required.
+
+## Grouped instruction checks
+
+Run `node check-instructions.cjs` from the repository root. It checks labelled
+keyboard/touch instruction groups, every supported key, touch gestures, quiz
+and checkpoint guidance, and preservation of all six touch controls.
+The browser-based `/check-responsive.html` check additionally verifies that
+the instruction groups are visible, labelled, and unclipped at all nine widths.

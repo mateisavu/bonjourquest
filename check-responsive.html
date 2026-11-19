@@ -13,6 +13,10 @@ const expected=['ArrowLeft','ArrowRight','Space','ArrowUp','ArrowDown','KeyE'];
 function requireCheck(condition,message){if(!condition)throw Error(message)}
 function validate(sample){
  requireCheck(JSON.stringify(sample.keys)===JSON.stringify(expected),'Exactly six controls in the existing order');
+ requireCheck(sample.instructions.heading==='Controls & guidance','Instruction section needs a visible heading');
+ requireCheck(JSON.stringify(sample.instructions.labels)===JSON.stringify(['Keyboard','Touch']),'Keyboard and touch groups need associated headings');
+ requireCheck(sample.instructions.visible,'Instruction guidance is hidden');
+ requireCheck(sample.instructions.readable,'Instructions overflow or are clipped');
  const visible=sample.width<=800||sample.coarse;
  requireCheck((sample.display!=='none')===visible,'Unexpected visibility at '+sample.width+'px');
  if(!visible)return;
@@ -32,7 +36,11 @@ function measure(frame){
  const doc=frame.contentDocument,win=frame.contentWindow,group=doc.querySelector('.touch');
  requireCheck(group,'Missing .touch group');
  const rect=element=>{const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};
- return {width:win.innerWidth,coarse:win.matchMedia('(pointer:coarse)').matches,display:win.getComputedStyle(group).display,keys:[...group.querySelectorAll('button')].map(b=>b.dataset.key),bounds:rect(group),adventure:rect(doc.querySelector('.adventure')),scrollWidth:group.scrollWidth,clientWidth:group.clientWidth,buttons:[...group.querySelectorAll('button')].map(b=>({...rect(b),scrollWidth:b.scrollWidth,clientWidth:b.clientWidth,scrollHeight:b.scrollHeight,clientHeight:b.clientHeight,touchAction:win.getComputedStyle(b).touchAction}))};
+ const guide=doc.querySelector('.instruction-controls');
+ const sections=['keyboardInstructions','touchInstructions'].map(id=>doc.getElementById(id));
+ const instructions={heading:doc.getElementById(guide.getAttribute('aria-labelledby'))?.textContent,labels:sections.map(section=>doc.getElementById(section.getAttribute('aria-labelledby'))?.textContent),visible:[guide,...sections].every(element=>element.getBoundingClientRect().height>0&&win.getComputedStyle(element).visibility==='visible'&&!element.closest('[hidden],[aria-hidden="true"]')),readable:[guide,...guide.querySelectorAll('li')].every(element=>{const r=element.getBoundingClientRect();return r.left>=0&&r.right<=doc.documentElement.clientWidth+1&&element.scrollWidth<=element.clientWidth+1})};
+
+ return {instructions,width:win.innerWidth,coarse:win.matchMedia('(pointer:coarse)').matches,display:win.getComputedStyle(group).display,keys:[...group.querySelectorAll('button')].map(b=>b.dataset.key),bounds:rect(group),adventure:rect(doc.querySelector('.adventure')),scrollWidth:group.scrollWidth,clientWidth:group.clientWidth,buttons:[...group.querySelectorAll('button')].map(b=>({...rect(b),scrollWidth:b.scrollWidth,clientWidth:b.clientWidth,scrollHeight:b.scrollHeight,clientHeight:b.clientHeight,touchAction:win.getComputedStyle(b).touchAction}))};
 }
 async function fixture(width){
  const frame=document.createElement('iframe');frame.title='Test viewport '+width;frame.style.width=width+'px';
@@ -46,14 +54,14 @@ async function fixture(width){
  for(const width of [280,320,360,390,600,601,800,801,1024]){
   try{const sample=await fixture(width);validate(sample);
    // Verify representative failures are rejected by the geometry checker.
-   if(width===320)for(const corrupt of [s=>s.keys.pop(),s=>s.buttons[0].width=30,s=>s.buttons[0].right=s.bounds.right+20,s=>Object.assign(s.buttons[1],s.buttons[0])]){
+   if(width===320)for(const corrupt of [s=>s.instructions.visible=false,s=>s.instructions.labels[0]='',s=>s.keys.pop(),s=>s.buttons[0].width=30,s=>s.buttons[0].right=s.bounds.right+20,s=>Object.assign(s.buttons[1],s.buttons[0])]){
     const broken=JSON.parse(JSON.stringify(sample));corrupt(broken);let rejected=false;try{validate(broken)}catch{rejected=true}requireCheck(rejected,'Regression checker missed deliberately broken geometry');
    }
    lines.push('PASS '+width+'px: '+(sample.display==='none'?'hidden on fine-pointer desktop':'all six targets fit, minimum 48px, no overlaps or clipped labels')+'; pointer: '+(sample.coarse?'coarse':'fine'));
   }catch(error){failed++;lines.push('FAIL '+width+'px: '+error.message)}
   output.textContent=lines.join('\n');
  }
- output.textContent+='\n'+(failed?'FAIL: '+failed+' viewport(s) failed.':'PASS: all 9 viewport checks and negative geometry cases.')+'\nPointer media queries reflect the actual test browser; run on a touch device as well to verify its coarse-pointer branch.';
+ output.textContent+='\n'+(failed?'FAIL: '+failed+' viewport(s) failed.':'PASS: all 9 viewport checks, instruction visibility/labels and negative cases.')+'\nPointer media queries reflect the actual test browser; run on a touch device as well to verify its coarse-pointer branch.';
  document.title=(failed?'FAIL':'PASS')+' — touch-layout checks';
 })();
 </script>
