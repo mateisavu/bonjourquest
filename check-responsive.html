@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonjour Quest touch-layout checks</title>
+<style>body{font:16px/1.6 system-ui;margin:24px}pre{white-space:pre-wrap}iframe{position:absolute;left:-10000px;top:0;border:0;height:740px}</style>
+<h1>Touch-control responsive checks</h1>
+<p>Tests the real index.html and style.css in same-origin frames, without third-party libraries. Serve this directory over HTTP, then open this page.</p>
+<pre id="results" role="status" aria-live="polite">Running…</pre>
+<script>
+'use strict';
+const expected=['ArrowLeft','ArrowRight','Space','ArrowUp','ArrowDown','KeyE'];
+function requireCheck(condition,message){if(!condition)throw Error(message)}
+function validate(sample){
+ requireCheck(JSON.stringify(sample.keys)===JSON.stringify(expected),'Exactly six controls in the existing order');
+ const visible=sample.width<=800||sample.coarse;
+ requireCheck((sample.display!=='none')===visible,'Unexpected visibility at '+sample.width+'px');
+ if(!visible)return;
+ requireCheck(sample.scrollWidth<=sample.clientWidth+1,'Touch group overflows');
+ const tolerance=1;
+ for(const [i,b] of sample.buttons.entries()){
+  requireCheck(b.width>=48-tolerance&&b.height>=48-tolerance,expected[i]+' target smaller than 48px');
+  requireCheck(b.left>=sample.bounds.left-tolerance&&b.right<=sample.bounds.right+tolerance,expected[i]+' clipped by group');
+  requireCheck(b.top>=sample.bounds.top-tolerance&&b.bottom<=sample.bounds.bottom+tolerance,expected[i]+' outside group');
+  requireCheck(b.left>=sample.adventure.left-tolerance&&b.right<=sample.adventure.right+tolerance,expected[i]+' clipped by adventure');
+  requireCheck(b.scrollWidth<=b.clientWidth+1&&b.scrollHeight<=b.clientHeight+1,expected[i]+' label clipped');
+  requireCheck(b.touchAction==='none',expected[i]+' lost its existing touch-action behavior');
+  for(const other of sample.buttons.slice(i+1))requireCheck(!(Math.min(b.right,other.right)-Math.max(b.left,other.left)>tolerance&&Math.min(b.bottom,other.bottom)-Math.max(b.top,other.top)>tolerance),'Buttons overlap');
+ }
+}
+function measure(frame){
+ const doc=frame.contentDocument,win=frame.contentWindow,group=doc.querySelector('.touch');
+ requireCheck(group,'Missing .touch group');
+ const rect=element=>{const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};
+ return {width:win.innerWidth,coarse:win.matchMedia('(pointer:coarse)').matches,display:win.getComputedStyle(group).display,keys:[...group.querySelectorAll('button')].map(b=>b.dataset.key),bounds:rect(group),adventure:rect(doc.querySelector('.adventure')),scrollWidth:group.scrollWidth,clientWidth:group.clientWidth,buttons:[...group.querySelectorAll('button')].map(b=>({...rect(b),scrollWidth:b.scrollWidth,clientWidth:b.clientWidth,scrollHeight:b.scrollHeight,clientHeight:b.clientHeight,touchAction:win.getComputedStyle(b).touchAction}))};
+}
+async function fixture(width){
+ const frame=document.createElement('iframe');frame.title='Test viewport '+width;frame.style.width=width+'px';
+ const loaded=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Page load timeout at '+width+'px')),15000);frame.onload=()=>{clearTimeout(timer);resolve()};frame.onerror=()=>{clearTimeout(timer);reject(Error('Frame load failed'))}});
+ frame.src='./index.html';document.body.append(frame);
+ try{await loaded;await frame.contentDocument.fonts.ready;return measure(frame)}finally{frame.remove()}
+}
+(async()=>{
+ const output=document.getElementById('results'),lines=[];let failed=0;
+ if(location.protocol==='file:'){output.textContent='Serve the project over HTTP; file:// does not provide reliable same-origin frame access.';return}
+ for(const width of [280,320,360,390,600,601,800,801,1024]){
+  try{const sample=await fixture(width);validate(sample);
+   // Verify representative failures are rejected by the geometry checker.
+   if(width===320)for(const corrupt of [s=>s.keys.pop(),s=>s.buttons[0].width=30,s=>s.buttons[0].right=s.bounds.right+20,s=>Object.assign(s.buttons[1],s.buttons[0])]){
+    const broken=JSON.parse(JSON.stringify(sample));corrupt(broken);let rejected=false;try{validate(broken)}catch{rejected=true}requireCheck(rejected,'Regression checker missed deliberately broken geometry');
+   }
+   lines.push('PASS '+width+'px: '+(sample.display==='none'?'hidden on fine-pointer desktop':'all six targets fit, minimum 48px, no overlaps or clipped labels')+'; pointer: '+(sample.coarse?'coarse':'fine'));
+  }catch(error){failed++;lines.push('FAIL '+width+'px: '+error.message)}
+  output.textContent=lines.join('\n');
+ }
+ output.textContent+='\n'+(failed?'FAIL: '+failed+' viewport(s) failed.':'PASS: all 9 viewport checks and negative geometry cases.')+'\nPointer media queries reflect the actual test browser; run on a touch device as well to verify its coarse-pointer branch.';
+ document.title=(failed?'FAIL':'PASS')+' — touch-layout checks';
+})();
+</script>
+</html>

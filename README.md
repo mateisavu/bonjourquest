@@ -77,3 +77,16 @@ choice, and Continue returns focus to the canvas. Hearts, coins, XP, gates and
 checkpoints are live text; changing spatial details are available in the text
 view without per-frame live announcements. This is not a claim of full
 screen-reader or nonvisual playability.
+
+## Touch-control responsive checks
+
+Serve this repository over HTTP using your existing local static server, then
+open `/check-responsive.html` (for example,
+`http://127.0.0.1:4173/check-responsive.html`). No packages or build are required.
+The page loads the real game and styles at 280, 320, 360, 390, 600, 601, 800,
+801, and 1024 CSS pixels. It checks all six controls, 48px minimum targets,
+containment, overlap, label clipping, touch-action, and desktop visibility.
+Deliberately broken geometry also verifies that the checker detects regressions.
+The pointer media query reflects the browser running the checks; repeat on an
+actual touch device to verify the coarse-pointer branch and physical multitouch.
+The check reads layout without starting gameplay or resetting saved progress.
