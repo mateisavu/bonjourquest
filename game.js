@@ -7,16 +7,124 @@ function updateEntryPoints(){
  $('play').hidden=!available;$('play').disabled=!available;
  $('continueHint').textContent=available?'Continue your started adventure from its saved checkpoint.':'No adventure started yet. Use Start new adventure above to begin.';
 }
-const lessons=[[
-['How do you say “hello” in French?','A friendly word for meeting someone.',['Bonjour','Merci','Au revoir','Pardon'],0,'Bonjour = hello'],
-['Someone helps you. What do you say?','Show your appreciation.',['Bonsoir','Merci','Salut','Oui'],1,'Merci = thank you'],
-['Which word means “goodbye”?','Until the next adventure!',['S’il vous plaît','Bonjour','Au revoir','Non'],2,'Au revoir = goodbye']],[
-['How many is “trois”?','Count: un, deux, trois.',['One','Two','Three','Four'],2,'Trois = three'],
-['What does “de l’eau” mean?','An explorer needs this to stay hydrated.',['Bread','Water','An apple','Milk'],1,'De l’eau = water'],
-['Which word means “apple”?','A snack from the orchard.',['Le pain','Le chat','La pomme','La maison'],2,'La pomme = apple']],[
-['What does “Je m’appelle Alex” mean?','Introduce yourself.',['I am hungry','My name is Alex','I live in Paris','Hello Alex'],1,'Je m’appelle… = my name is…'],
-['How do you say “I would like some water”?','Je voudrais means “I would like”.',['Je suis de l’eau','J’ai une pomme','Je voudrais de l’eau','Au revoir l’eau'],2,'Je voudrais de l’eau = I would like some water'],
-['What does “Où est la bibliothèque ?” mean?','Où est… asks where something is.',['What is your name?','Where is the library?','I like the library','The library is closed'],1,'Où est… ? = where is… ?']]];
+const lessons=[
+ [
+  [
+   "It is 10 a.m. You greet a shopkeeper politely. Which greeting fits?",
+   "Choose the phrase that fits the time and situation.",
+   [
+    "Bonsoir, madame.",
+    "Bonjour, madame.",
+    "Au revoir, madame.",
+    "Bonne nuit, madame."
+   ],
+   1,
+   "Bonjour = hello"
+  ],
+  [
+   "A guide has just helped you find your way. How do you thank them warmly?",
+   "Choose a reply that expresses gratitude.",
+   [
+    "S’il vous plaît.",
+    "Excusez-moi.",
+    "Merci beaucoup.",
+    "À bientôt."
+   ],
+   2,
+   "Merci = thank you"
+  ],
+  [
+   "You are leaving a shop after your visit. Which phrase says goodbye?",
+   "Choose a farewell, rather than a greeting or a request.",
+   [
+    "Bienvenue !",
+    "S’il vous plaît.",
+    "Bonjour !",
+    "Au revoir !"
+   ],
+   3,
+   "Au revoir = goodbye"
+  ]
+ ],
+ [
+  [
+   "You want three apples. Which request gets the right quantity and item?",
+   "Pay attention to both the number and the noun.",
+   [
+    "Deux pommes, s’il vous plaît.",
+    "Trois pains, s’il vous plaît.",
+    "Une pomme, s’il vous plaît.",
+    "Trois pommes, s’il vous plaît."
+   ],
+   3,
+   "Trois = three"
+  ],
+  [
+   "Which sentence correctly asks for some water?",
+   "Choose the correctly written request.",
+   [
+    "Je voudrais du eau.",
+    "Je voudrais de la eau.",
+    "Je voudrais de l’eau.",
+    "Je voudrais de eau."
+   ],
+   2,
+   "De l’eau = water"
+  ],
+  [
+   "Complete the phrase meaning “I eat an apple”: Je mange ___ pomme.",
+   "Choose the indefinite article that agrees with the noun.",
+   [
+    "un",
+    "une",
+    "des",
+    "le"
+   ],
+   1,
+   "La pomme = apple"
+  ]
+ ],
+ [
+  [
+   "Which sentence means “My name is Alex”, rather than introducing someone else?",
+   "Pay attention to who is speaking.",
+   [
+    "Tu t’appelles Alex.",
+    "Il s’appelle Alex.",
+    "Je m’appelle Alex.",
+    "Elle s’appelle Alex."
+   ],
+   2,
+   "Je m’appelle… = my name is…"
+  ],
+  [
+   "You want to make a polite request for water. Which sentence means “I would like some water”?",
+   "Distinguish a polite request from drinking, wanting, or having to drink.",
+   [
+    "Je bois de l’eau.",
+    "Je dois boire de l’eau.",
+    "Je veux de l’eau.",
+    "Je voudrais de l’eau."
+   ],
+   3,
+   "Je voudrais de l’eau = I would like some water"
+  ],
+  [
+   "You need directions to the library, rather than a bookshop or its opening time. What do you ask?",
+   "Choose the question that asks for the right place.",
+   [
+    "Où est la librairie ?",
+    "Quand ouvre la bibliothèque ?",
+    "Où est la bibliothèque ?",
+    "Combien coûte ce livre ?"
+   ],
+   2,
+   "Où est… ? = where is… ?"
+  ]
+ ]
+];
+const quizAudio=["Bonjour, madame.","Merci beaucoup.","Au revoir !","Trois pommes, s’il vous plaît.","Je voudrais de l’eau.","Je mange une pomme.","Je m’appelle Alex.","Je voudrais de l’eau.","Où est la bibliothèque ?"];
+const quizExplanations=["Bonjour is a polite daytime greeting; bonsoir is for the evening.","Merci beaucoup means thank you very much.","Au revoir is used when leaving.","Trois means three, and pommes means apples; pain means bread.","Eau begins with a vowel sound, so use de l’eau.","Pomme is feminine: an apple is une pomme.","Je refers to the speaker; tu, il, and elle refer to someone else.","Je voudrais is a polite way to say I would like.","Bibliothèque means library; librairie means bookshop. Où asks where, and quand asks when."];
 const names=['THE EMERALD RUINS','SUNSET CANYON','MOONLIT TEMPLE'],colors=[['#142e2e','#365b43','#7a9564'],['#45323c','#956553','#c49762'],['#172440','#424b72','#8794a7']];
 let world=0,running=false,paused=false,time=0,last=0,cam=0,hearts=3,coins=0,gates=[],items=[],hazards=[],player,checkpoint=60,questionGate=0,sound=false,audio;
 const keys={};
@@ -70,7 +178,7 @@ function releaseKey(code){keys[code]=false;if(code==='Space')QuestPhysics.releas
 function isEditing(target){return target&&(/INPUT|TEXTAREA|SELECT/.test(target.tagName)||target.isContentEditable)}
 window.addEventListener('keydown',e=>{
  if(!$('quiz').hidden&&!$('learningDialog').open&&e.code==='Tab'){
-  const buttons=[...$('answers').children,$('continue')].filter(b=>!b.disabled&&!b.hidden);
+  const buttons=[$('quizListen'),...$('answers').children,$('continue')].filter(b=>!b.disabled&&!b.hidden);
   const first=buttons[0],last=buttons[buttons.length-1];
   if(first&&((e.shiftKey&&document.activeElement===first)||(!e.shiftKey&&document.activeElement===last)||!buttons.includes(document.activeElement))){e.preventDefault();(e.shiftKey?last:first).focus()}
   return;
@@ -97,27 +205,22 @@ function setPaused(value){if(!running||!$('quiz').hidden||$('learningDialog').op
 $('resume').onclick=()=>setPaused(false);
 function tryGate(){if(!running||paused)return;const i=gates.findIndex(g=>!g.open&&Math.abs(player.x-g.x)<70&&Math.abs(player.y+42-g.y)<65);if(i>=0)openQuiz(i)}
 function openQuiz(i){
- paused=true;clearKeys();questionGate=i;$('quiz').hidden=false;$('continue').hidden=false;
- const q=lessons[world][i],card=fieldNotes[world][i];
- $('quizTag').textContent=`GATE ${i+1} / 3 · LEARN FIRST`;
- $('question').textContent=card.fr;$('hint').textContent=card.en+' — '+card.context;
- $('answers').replaceChildren();$('feedback').textContent=card.tip;
- const listen=document.createElement('button');listen.textContent='Hear French';listen.onclick=()=>speakFrench(card.fr);$('answers').append(listen);
- $('continue').textContent='Ready? Try the quiz →';$('continue').onclick=()=>showGateQuestion(i);$('continue').focus();
+ paused=true;clearKeys();questionGate=i;$('quiz').hidden=false;$('note').textContent='Compare the choices and use Hear French if you want audio. The explanation appears after a correct answer.';showGateQuestion(i);
 }
 function showGateQuestion(i){
- const q=lessons[world][i],card=fieldNotes[world][i];restoreContinue();
+ const q=lessons[world][i];restoreContinue();
  $('continue').hidden=true;$('quizTag').textContent=`GATE ${i+1} / 3 · +50 XP`;
- $('question').textContent=q[0];$('hint').textContent=q[1];$('feedback').textContent='No timer. Mistakes never cost hearts.';$('answers').replaceChildren();
+ $('question').textContent=q[0];$('hint').textContent=q[1];$('feedback').textContent='Listen if you like, then choose an answer. No timer or heart penalty.';$('answers').replaceChildren();
+ const listen=$('quizListen');listen.hidden=false;listen.disabled=false;listen.onclick=()=>speakFrench(quizAudio[world*3+i]);
  const choices=q[2].map((label,j)=>({label,correct:j===q[3]}));
  for(let k=choices.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[choices[k],choices[j]]=[choices[j],choices[k]]}
- choices.forEach(choice=>{const b=document.createElement('button');b.textContent=choice.label;b.onclick=()=>{
- if(choice.correct){b.classList.add('correct');$('feedback').textContent='Très bien! '+card.fr+' — '+card.en+'. '+card.tip;$('note').textContent=q[4];[...$('answers').children].forEach(v=>v.disabled=true);$('continue').hidden=false;markCheckpoint(i);
+ choices.forEach(choice=>{const button=document.createElement('button');button.textContent=choice.label;button.onclick=()=>{
+ if(choice.correct){button.classList.add('correct');$('feedback').textContent='Très bien! '+quizAudio[world*3+i]+' — '+quizExplanations[world*3+i];$('note').textContent=q[4];[...$('answers').children].forEach(v=>v.disabled=true);$('continue').hidden=false;markCheckpoint(i);
  if(!progress.words.includes(q[4])){progress.words.push(q[4]);progress.xp+=50}persist();tone(780);$('continue').focus()
- }else{b.classList.add('wrong');b.disabled=true;$('feedback').textContent='Let’s revisit it: '+card.fr+' means “'+card.en+'”. '+card.tip+' Try again.';tone(180);[...$('answers').children].find(answer=>!answer.disabled)?.focus()}
- };$('answers').append(b)});$('answers').firstChild.focus()
+ }else{button.classList.add('wrong');button.disabled=true;$('feedback').textContent='Not quite. Listen again or compare the remaining choices, then try again.';tone(180);[...$('answers').children].find(answer=>!answer.disabled)?.focus()}
+ };$('answers').append(button)});$('answers').firstChild.focus()
 }
-$('continue').onclick=()=>{if(questionGate<2){paused=false;$('quiz').hidden=true;player.x=checkpoint;player=QuestPhysics.createPlayer(checkpoint,checkpointY);player.inv=1;clearKeys();canvas.focus()}else{progress.unlocked=Math.max(progress.unlocked,Math.min(2,world+1));persist();$('question').textContent=world===2?'The Lexicon is restored!':'Chapter complete. Très bien!';$('hint').textContent=world===2?'You practised nine French essentials. Open Study & recall to try remembering them without answer choices.':'A new world is unlocked. Your French is getting stronger.';$('answers').replaceChildren();$('feedback').textContent=`${coins} coins collected · ${progress.xp} total XP`;$('continue').textContent=world===2?'Play the expedition again →':'Explore the next world →';$('continue').onclick=()=>{loadWorld(world===2?0:world+1,true);paused=false;$('quiz').hidden=true;restoreContinue()}}};
+$('continue').onclick=()=>{if(questionGate<2){paused=false;$('quiz').hidden=true;player.x=checkpoint;player=QuestPhysics.createPlayer(checkpoint,checkpointY);player.inv=1;clearKeys();canvas.focus()}else{progress.unlocked=Math.max(progress.unlocked,Math.min(2,world+1));persist();$('question').textContent=world===2?'The Lexicon is restored!':'Chapter complete. Très bien!';$('hint').textContent=world===2?'You practised nine French essentials. Open Study & recall to try remembering them without answer choices.':'A new world is unlocked. Your French is getting stronger.';$('answers').replaceChildren();$('quizListen').hidden=true;$('feedback').textContent=`${coins} coins collected · ${progress.xp} total XP`;$('continue').textContent=world===2?'Play the expedition again →':'Explore the next world →';$('continue').onclick=()=>{loadWorld(world===2?0:world+1,true);paused=false;$('quiz').hidden=true;restoreContinue()}}};
 const originalContinue=$('continue').onclick;function restoreContinue(){$('continue').textContent='Continue adventure →';$('continue').onclick=originalContinue}
 function enterAdventure(){running=true;paused=false;$('pauseScreen').hidden=true;$('start').hidden=true;$('quiz').hidden=true;$('pause').disabled=false;$('pause').textContent='Pause';clearKeys();restoreContinue();canvas.focus();persist();tone(600);if(runState().gates===3)openChapterComplete()}
 $('play').onclick=()=>{if(progress.adventureStarted!==true)return;enterAdventure()};$('restart').onclick=()=>{if(!confirm('Restart this chapter? Its gates and coins will reset. Your French XP stays safe.'))return;loadWorld(world,true);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue();if(running)canvas.focus()};document.querySelectorAll('.world').forEach((b,i)=>b.onclick=()=>{if(i<=progress.unlocked){loadWorld(i);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue();if(running){canvas.focus();if(runState().gates===3)openChapterComplete()}}else{$('note').textContent='Complete the previous chapter’s three French gates to unlock this world.'}});$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'♪ Sound on':'♪ Sound off';tone()};$('reset').onclick=()=>{if(confirm('Reset your saved XP and unlocked worlds?')){progress={xp:0,words:[],unlocked:0};persist();loadWorld(0);paused=false;$('pauseScreen').hidden=true;$('pause').textContent='Pause';$('quiz').hidden=true;restoreContinue()}};
@@ -190,7 +293,7 @@ function renderRecall(){const root=$('learningContent');root.replaceChildren();$
  const next=addAction('Next phrase →',()=>{recallIndex++;renderRecall()});next.hidden=true;input.onkeydown=e=>{if(e.key==='Enter')check.click()};input.focus()
 }
 $('study').onclick=showStudy;
-$('help').onclick=()=>{showNotebook('How to explore');const p=document.createElement('p');p.textContent='Move right with ← → or A / D. Jump with Space; release early for a shorter jump. Hold ↑ / W or ↓ / S beside a ladder to climb up or down. On touchscreens, use the controls below the scene. Glowing gates open a field note and quiz. Answer correctly to unlock the next section. You can pause at any time; Gentle mode prevents barrel damage. Quizzes have no timer or heart penalty.';$('learningContent').append(p);addAction('Back to adventure',closeNotebook,true)};
+$('help').onclick=()=>{showNotebook('How to explore');const p=document.createElement('p');p.textContent='Move right with ← → or A / D. Jump with Space; release early for a shorter jump. Hold ↑ / W or ↓ / S beside a ladder to climb up or down. On touchscreens, use the controls below the scene. Glowing gates open a quiz with optional French audio. Answer correctly to unlock the next section. You can pause at any time; Gentle mode prevents barrel damage. Quizzes have no timer or heart penalty.';$('learningContent').append(p);addAction('Back to adventure',closeNotebook,true)};
 $('pause').onclick=()=>setPaused(!paused);
 $('gentle').onchange=()=>{progress.gentle=$('gentle').checked;persist()};$('gentle').checked=!!progress.gentle;
 canvas.tabIndex=0;

@@ -62,3 +62,5 @@ canvas:focus-visible{outline:3px solid var(--gold);outline-offset:-4px}
 .startbox .entry-hint{margin:12px auto;color:#d3dfcc;font-size:12px}
 #play.secondary-play{background:#172b22;color:var(--gold);border:1px solid var(--gold);min-height:48px;padding:14px 22px;font-weight:600}
 #play.secondary-play:hover{background:#253a2b}
+
+#quizListen{margin:0 0 6px;min-height:44px;border-color:#edce8370} .quizbox .quiz-audio-help{font-size:11px;color:#b9c8bb;line-height:1.5;margin:0 0 14px}

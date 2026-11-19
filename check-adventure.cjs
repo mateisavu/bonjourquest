@@ -14,7 +14,7 @@ const game=boot();
 game.run(`running=true;$('gentle').checked=true;
  function tick(n){for(let t=0;t<n;t++)step(1/120)}
  function walkTo(x){keys.ArrowRight=player.x<x;keys.ArrowLeft=player.x>x;for(let i=0;i<3000&&Math.abs(player.x-x)>3&&!paused;i++){step(1/120);if((keys.ArrowRight&&player.x>=x)||(keys.ArrowLeft&&player.x<=x))break}clearKeys();}
- function solveGate(i){if(!paused)throw Error('Gate did not activate '+i);$('continue').click();const label=lessons[world][i][2][lessons[world][i][3]];const choice=$('answers').children.find(b=>b.textContent===label);if(!choice)throw Error('No correct choice');choice.click();$('continue').click();}
+ function solveGate(i){if(!paused)throw Error('Gate did not activate '+i);const label=lessons[world][i][2][lessons[world][i][3]];const choice=$('answers').children.find(b=>b.textContent===label);if(!choice)throw Error('No correct choice');choice.click();$('continue').click();}
  for(let w=0;w<3;w++){
   for(let i=0;i<3;i++){
    walkTo([716,1506,2646][i]);keys.ArrowUp=true;tick(250);clearKeys();walkTo(gates[i].x);
@@ -37,7 +37,7 @@ restored.run(`loadWorld(0,true);$('quiz').hidden=true;markCheckpoint(0);runState
 // Old saved data migrates without losing earned learning progress.
 restored=boot(JSON.stringify({xp:150,words:['Bonjour = hello'],unlocked:1,current:1}));
 restored.run(`if(world!==1||progress.xp!==150||progress.words.length!==1)throw Error('Old save migration');`);
-console.log('PASS: physically traverse all 3 worlds, learn-first quizzes, nine gate unlocks, XP, chapter transitions, reload checkpoints, safe respawn, pause, old save migration');
+console.log('PASS: physically traverse all 3 worlds, direct contextual quizzes, nine gate unlocks, XP, chapter transitions, reload checkpoints, safe respawn, pause, old save migration');
 
 
 
@@ -64,7 +64,7 @@ accessible.elements.game.blur();
 accessible.run(`assert.equal(keys.ArrowRight,false,'leaving canvas must clear held input')`);
 key('Space');accessible.run(`assert.ok(player.jumpBuffer>0,'canvas Space queues a jump')`);
 accessible.elements.game.blur();accessible.run(`assert.equal(player.jumpBuffer,0)`);
-accessible.run(`openQuiz(0);$('continue').click();
+accessible.run(`openQuiz(0);
  const correct=lessons[0][0][2][lessons[0][0][3]];
  const wrong=$('answers').children.find(b=>b.textContent!==correct);
  const beforeHearts=hearts,beforeXP=progress.xp;wrong.focus();wrong.click();
@@ -74,7 +74,7 @@ accessible.run(`openQuiz(0);$('continue').click();
  $('answers').children.filter(b=>!b.disabled).at(-1).focus();
 `);
 assert.equal(key('Tab',accessible.context.document.activeElement).prevented,true);
-accessible.run(`assert.equal(document.activeElement,$('answers').children.find(b=>!b.disabled))`);
+accessible.run(`assert.equal(document.activeElement,$('quizListen'))`);
 assert.equal(key('Tab',accessible.context.document.activeElement,true).prevented,true);
 accessible.run(`assert.equal(document.activeElement,$('answers').children.filter(b=>!b.disabled).at(-1));
  $('answers').children.find(b=>b.textContent===lessons[0][0][2][lessons[0][0][3]]).click();
@@ -130,3 +130,40 @@ for(const [id,description] of [['heroPlay','newAdventureHint'],['play','continue
  assert.ok(markup.includes('id="'+description+'"'));
 }
 console.log('PASS: fresh Start, unavailable Continue, zero-XP resume, saved checkpoint/coin preservation, reset scope, cancellation, completion resume, focus, scrolling and entry descriptions');
+
+// Every gate opens on choices, with optional audio and no written answer preview.
+const harder=boot();
+harder.context.SpeechSynthesisUtterance=function(text){this.text=text};
+harder.context.spoken=[];
+harder.context.window.speechSynthesis={cancel(){},speak(utterance){harder.context.spoken.push(utterance)}};
+harder.run(`running=true;$('learningDialog').open=false;
+ for(let w=0;w<3;w++){
+  loadWorld(w,true);
+  for(let i=0;i<3;i++){
+   const q=lessons[w][i],answer=q[2][q[3]];openQuiz(i);
+   assert.equal($('question').textContent,q[0]);assert.equal($('answers').children.length,4);
+   assert.equal(new Set(q[2]).size,4,'All choices must be distinct');assert.ok(q[3]>=0&&q[3]<4);
+   assert.equal($('continue').hidden,true);assert.equal($('quizListen').hidden,false);
+   const preamble=$('question').textContent+' '+$('hint').textContent+' '+$('feedback').textContent;
+   assert.ok(!preamble.includes(quizExplanations[w*3+i]),'Explanation leaked before answering');
+   assert.notEqual($('question').textContent,fieldNotes[w][i].fr,'Old answer-first card returned');assert.ok(!$('note').textContent.includes(q[4]),'Previous field note leaked a solution');
+   assert.notEqual($('hint').textContent,fieldNotes[w][i].en+' — '+fieldNotes[w][i].context);
+   const beforeXP=progress.xp,beforeHearts=hearts;
+   $('quizListen').click();assert.equal(spoken.at(-1).text,quizAudio[w*3+i]);assert.equal(spoken.at(-1).lang,'fr-FR');assert.equal(progress.xp,beforeXP);assert.equal(hearts,beforeHearts);assert.ok(!gates[i].open);
+   $('answers').children.find(button=>button.textContent!==answer).click();
+   assert.equal(progress.xp,beforeXP);assert.equal(hearts,beforeHearts);assert.ok(!gates[i].open);
+   assert.ok(!$('feedback').textContent.includes(quizExplanations[w*3+i]),'Wrong answer disclosed explanation');
+   assert.ok(!$('feedback').textContent.includes(quizAudio[w*3+i]),'Wrong answer disclosed solution');
+   assert.equal($('continue').hidden,true);assert.equal($('quizListen').disabled,false);
+   $('quizListen').click();assert.equal(spoken.at(-1).text,quizAudio[w*3+i]);
+   $('answers').children.find(button=>button.textContent===answer).click();
+   assert.ok(gates[i].open);assert.equal(progress.xp,beforeXP+50);assert.equal($('continue').hidden,false);
+   assert.ok($('feedback').textContent.includes(quizExplanations[w*3+i]));
+   $('continue').click();if(i===2)assert.equal($('quizListen').hidden,true,'Audio from the previous question must not remain on completion');
+  }
+ }
+ assert.equal(progress.xp,450);assert.equal(progress.words.length,9);
+`);
+const noAudio=boot();
+noAudio.run(`running=true;openQuiz(0);$('quizListen').click();assert.match($('note').textContent,/unavailable/);assert.equal($('answers').children.length,4);assert.equal($('continue').hidden,true)`);
+console.log('PASS: all 9 harder gates open directly on choices, French audio during answering/retries, no answer-first card, no written solution after mistakes, correct-only rewards, audio fallback');

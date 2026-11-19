@@ -116,3 +116,14 @@ It resumes the saved checkpoint without clearing progress.
 Run `node check-adventure.cjs` for both entry-point regression tests. The
 browser-based `check-responsive.html` checks their visibility, descriptions,
 and mobile fit alongside the existing responsive checks.
+
+## Gate quizzes
+
+Gates now open directly to four shuffled choices with optional Hear French
+audio available while answering. Questions use situations, short phrases, and
+closer distractors. No answer card appears before the quiz, and incorrect
+answers do not disclose the solution. Explanations appear after a correct
+answer. Existing XP, lesson identifiers, and checkpoint saves are preserved.
+Run `node check-adventure.cjs` to check all nine quiz flows, speech requests,
+retry feedback, rewards, and the browser-speech fallback. Speech rendering and
+voice availability depend on the browser/device.
